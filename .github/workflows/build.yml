@@ -1,4 +1,4 @@
-name: Build Moto G Stylus Latest NetHunter Kernel
+name: Build Moto G Stylus NetHunter Kernel
 
 on:
   workflow_dispatch:
@@ -16,7 +16,8 @@ jobs:
         with:
           kernel-url: https://github.com/LineageOS/android_kernel_motorola_sm6375
           kernel-branch: lineage-21.0
-          config: milanf_defconfig
+          config: gki_defconfig
+          merge-configs: '["arch/arm64/configs/vendor/ext_config/lineage_moto-holi.config"]'
           arch: arm64
           aosp-gcc: true
           aosp-clang: true
