@@ -18,6 +18,22 @@ jobs:
           ref: lineage-23.2
           path: kernel-source
 
+      - name: Inject NetHunter Support Direct Configuration
+        run: |
+          cd kernel-source
+          
+          # Manually force all NetHunter hardware configuration switches into the core architecture config
+          TARGET_CONFIG="arch/arm64/configs/vendor/ext_config/lineage_moto-holi.config"
+          
+          echo "CONFIG_USB_GADGET=y" >> $TARGET_CONFIG
+          echo "CONFIG_USB_G_ANDROID=y" >> $TARGET_CONFIG
+          echo "CONFIG_USB_F_HID=y" >> $TARGET_CONFIG
+          echo "CONFIG_USB_CONFIGFS=y" >> $TARGET_CONFIG
+          echo "CONFIG_USB_CONFIGFS_F_HID=y" >> $TARGET_CONFIG
+          echo "CONFIG_MAC80211=y" >> $TARGET_CONFIG
+          echo "CONFIG_CFG80211=y" >> $TARGET_CONFIG
+          echo "CONFIG_CFG80211_WEXT=y" >> $TARGET_CONFIG
+
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
@@ -26,7 +42,7 @@ jobs:
           merge-configs: '["arch/arm64/configs/vendor/ext_config/lineage_moto-holi.config"]'
           arch: arm64
           anykernel3: true
-          nethunter: true
-          nethunter-patch: true
+          nethunter: false
+          nethunter-patch: false
           release: true
           access-token: ${{ secrets.GITHUB_TOKEN }}
