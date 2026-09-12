@@ -14,7 +14,7 @@ jobs:
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: https://github.com/LineageOS/android_kernel_motorola_sm6375
+          kernel-url: https://github.com
           kernel-branch: lineage-21.0
           config: gki_defconfig
           merge-configs: '["arch/arm64/configs/vendor/ext_config/lineage_moto-holi.config"]'
@@ -22,6 +22,7 @@ jobs:
           aosp-gcc: true
           aosp-clang: true
           android-version: 14
+          aosp-clang-version: r487747c
           anykernel3: true
           nethunter: true
           nethunter-patch: true
