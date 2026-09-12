@@ -1,7 +1,7 @@
-name: Build Moto G Stylus NetHunter Kernel
+name: Build Moto G Stylus Latest NetHunter Kernel
 
 on:
-  workflow_dispatch: # This adds a manual "Play" button so you can trigger it from your phone
+  workflow_dispatch: # Allows manual trigger from your device
 
 permissions:
   contents: write
@@ -14,13 +14,13 @@ jobs:
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: https://github.com
-          kernel-branch: lineage-21.0
+          kernel-url: https://github.com/LineageOS/android_kernel_motorola_sm6375
+          kernel-branch: lineage-23.2
           config: milanf_defconfig
           arch: arm64
           aosp-gcc: true
           aosp-clang: true
-          android-version: 14
+          android-version: 16
           anykernel3: true
           nethunter: true
           nethunter-patch: true
