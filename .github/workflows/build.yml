@@ -1,4 +1,4 @@
-name: Build Moto G Stylus Clean NetHunter Kernel
+name: Build Moto G Stylus Latest NetHunter Kernel
 
 on:
   workflow_dispatch:
@@ -11,11 +11,17 @@ jobs:
     name: Build NetHunter Kernel
     runs-on: ubuntu-22.04
     steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          repository: LineageOS/android_kernel_motorola_sm6375
+          ref: lineage-23.2
+          path: kernel-source
+
       - name: Build
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: http://github.com
-          kernel-branch: lineage-21.0
+          kernel-url: ./kernel-source/
           config: gki_defconfig
           merge-configs: '["arch/arm64/configs/vendor/ext_config/lineage_moto-holi.config"]'
           arch: arm64
