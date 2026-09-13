@@ -1,0 +1,74 @@
+name: Build milanf NetHunter Kernel
+
+on:
+  workflow_dispatch:
+
+# Force JavaScript-based GitHub Actions to use Node.js 24 instead of Node.js 20.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Test builds only need read access. Do not grant release-writing access yet.
+permissions:
+  contents: read
+
+# Prevent two large kernel builds from consuming runner time simultaneously.
+concurrency:
+  group: milanf-nethunter-kernel-build
+  cancel-in-progress: true
+
+jobs:
+  build-kernel:
+    name: Build Motorola milanf NetHunter Kernel
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Build kernel and AnyKernel3 ZIP
+        uses: dabao1955/kernel_build_action@main
+        with:
+          # Actual remote kernel source repository
+          kernel-url: https://github.com/LineageOS/android_kernel_motorola_sm6375.git
+
+          # Exact LineageOS branch to build
+          kernel-branch: lineage-23.2
+
+          # Kernel configuration and architecture
+          config: gki_defconfig
+          arch: arm64
+
+          # Enable the build action's NetHunter kernel configuration.
+          # Keep patches disabled until the baseline artifact builds and boots.
+          nethunter: true
+          nethunter-patch: false
+
+          # Produce an AnyKernel3 flashable ZIP
+          anykernel3: true
+
+          # Test only: do not automatically create a GitHub Release.
+          release: false
+
+          # Required by actions that need to access repository data
+          access-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List generated kernel ZIP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Searching for generated ZIP files..."
+          find "$GITHUB_WORKSPACE" \
+            -type f \
+            -name '*.zip' \
+            -not -path '*/.git/*' \
+            -printf '%p  %k KB
+' \
+            | sort
+
+      - name: Upload milanf kernel artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: milanf-nethunter-kernel-${{ github.run_number }}
+          path: |
+            **/*.zip
+            !**/.git/**
+          if-no-files-found: error
+          retention-days: 14
