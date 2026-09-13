@@ -1,40 +1,65 @@
-name: Build Moto G Stylus Latest NetHunter Kernel
+# Test-build workflow for Motorola Moto G Stylus 5G (2022) / milanf.
+# It downloads the LineageOS SM6375 kernel source, applies baseline
+# NetHunter-related kernel configuration, builds it, and uploads the ZIP
+# as a GitHub Actions artifact. It does NOT create a GitHub Release.
+
+name: Build milanf NetHunter Kernel (Test)
 
 on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-kernel:
-    name: Build NetHunter Kernel
+    name: Build milanf NetHunter Kernel
     runs-on: ubuntu-22.04
+
     steps:
-      - name: Checkout Source Code
+      - name: Checkout LineageOS kernel source
         uses: actions/checkout@v4
         with:
           repository: LineageOS/android_kernel_motorola_sm6375
           ref: lineage-23.2
           path: kernel-source
 
-      - name: Inject NetHunter Support Direct Configuration
+      - name: Add baseline NetHunter kernel configuration
+        shell: bash
         run: |
+          set -euo pipefail
           cd kernel-source
-          
-          # Manually force all NetHunter hardware configuration switches into the core architecture config
-          TARGET_CONFIG="arch/arm64/configs/vendor/ext_config/lineage_moto-holi.config"
-          
-          echo "CONFIG_USB_GADGET=y" >> $TARGET_CONFIG
-          echo "CONFIG_USB_G_ANDROID=y" >> $TARGET_CONFIG
-          echo "CONFIG_USB_F_HID=y" >> $TARGET_CONFIG
-          echo "CONFIG_USB_CONFIGFS=y" >> $TARGET_CONFIG
-          echo "CONFIG_USB_CONFIGFS_F_HID=y" >> $TARGET_CONFIG
-          echo "CONFIG_MAC80211=y" >> $TARGET_CONFIG
-          echo "CONFIG_CFG80211=y" >> $TARGET_CONFIG
-          echo "CONFIG_CFG80211_WEXT=y" >> $TARGET_CONFIG
 
-      - name: Build
+          TARGET_CONFIG="arch/arm64/configs/vendor/ext_config/lineage_moto-holi.config"
+          test -f "$TARGET_CONFIG"
+
+          cat >> "$TARGET_CONFIG" <<'EOF'
+
+          # --- milanf NetHunter baseline ---
+          # IPC and loadable-module support
+          CONFIG_SYSVIPC=y
+          CONFIG_MODULES=y
+          CONFIG_MODULE_UNLOAD=y
+          CONFIG_MODULE_FORCE_UNLOAD=y
+          CONFIG_MODVERSIONS=y
+
+          # USB host/gadget framework and configurable HID gadget support
+          CONFIG_USB_GADGET=y
+          CONFIG_USB_G_ANDROID=y
+          CONFIG_USB_CONFIGFS=y
+          CONFIG_USB_F_HID=y
+          CONFIG_USB_CONFIGFS_F_HID=y
+
+          # Linux wireless framework. This does not add a driver for a
+          # particular external USB Wi-Fi chipset.
+          CONFIG_CFG80211=y
+          CONFIG_CFG80211_WEXT=y
+          CONFIG_MAC80211=y
+          EOF
+
+          tail -n 35 "$TARGET_CONFIG"
+
+      - name: Build AnyKernel package
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: ./kernel-source/
@@ -44,5 +69,20 @@ jobs:
           anykernel3: true
           nethunter: false
           nethunter-patch: false
-          release: true
+          release: false
           access-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List generated ZIP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          find "$GITHUB_WORKSPACE" -type f -name '*.zip' -printf '%p  %k KB
+' | sort
+
+      - name: Upload kernel ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: milanf-nethunter-kernel-${{ github.run_number }}
+          path: '**/*.zip'
+          if-no-files-found: error
+          retention-days: 14
