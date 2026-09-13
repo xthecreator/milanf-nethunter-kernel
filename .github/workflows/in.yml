@@ -1,0 +1,57 @@
+name: Build milanf NetHunter Kernel
+
+on:
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: milanf-nethunter-kernel-build
+  cancel-in-progress: true
+
+jobs:
+  build-kernel:
+    name: Build Motorola milanf NetHunter Kernel
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Build kernel and AnyKernel3 ZIP
+        uses: dabao1955/kernel_build_action@main
+        with:
+          kernel-url: https://github.com/LineageOS/android_kernel_motorola_sm6375.git
+          kernel-branch: lineage-23.2
+          config: gki_defconfig
+          arch: arm64
+          nethunter: true
+          nethunter-patch: false
+          anykernel3: true
+          release: false
+          access-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List generated ZIP files
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Searching for generated ZIP files..."
+          find "$GITHUB_WORKSPACE" \
+            -type f \
+            -name '*.zip' \
+            -not -path '*/.git/*' \
+            -printf '%p  %k KB
+' \
+            | sort
+
+      - name: Upload milanf kernel ZIP
+        uses: actions/upload-artifact@v5
+        with:
+          name: milanf-nethunter-kernel-${{ github.run_number }}
+          path: |
+            **/*.zip
+            !**/.git/**
+          if-no-files-found: error
+          retention-days: 14
