@@ -1,88 +1,74 @@
-# Test-build workflow for Motorola Moto G Stylus 5G (2022) / milanf.
-# It downloads the LineageOS SM6375 kernel source, applies baseline
-# NetHunter-related kernel configuration, builds it, and uploads the ZIP
-# as a GitHub Actions artifact. It does NOT create a GitHub Release.
-
-name: Build milanf NetHunter Kernel (Test)
+name: Build milanf NetHunter Kernel
 
 on:
   workflow_dispatch:
 
+# Force JavaScript-based GitHub Actions to use Node.js 24 instead of Node.js 20.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Test builds only need read access. Do not grant release-writing access yet.
 permissions:
   contents: read
 
+# Prevent two large kernel builds from consuming runner time simultaneously.
+concurrency:
+  group: milanf-nethunter-kernel-build
+  cancel-in-progress: true
+
 jobs:
   build-kernel:
-    name: Build milanf NetHunter Kernel
+    name: Build Motorola milanf NetHunter Kernel
     runs-on: ubuntu-22.04
+    timeout-minutes: 180
 
     steps:
-      - name: Checkout LineageOS kernel source
-        uses: actions/checkout@v4
-        with:
-          repository: LineageOS/android_kernel_motorola_sm6375
-          ref: lineage-23.2
-          path: kernel-source
-
-      - name: Add baseline NetHunter kernel configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd kernel-source
-
-          TARGET_CONFIG="arch/arm64/configs/vendor/ext_config/lineage_moto-holi.config"
-          test -f "$TARGET_CONFIG"
-
-          cat >> "$TARGET_CONFIG" <<'EOF'
-
-          # --- milanf NetHunter baseline ---
-          # IPC and loadable-module support
-          CONFIG_SYSVIPC=y
-          CONFIG_MODULES=y
-          CONFIG_MODULE_UNLOAD=y
-          CONFIG_MODULE_FORCE_UNLOAD=y
-          CONFIG_MODVERSIONS=y
-
-          # USB host/gadget framework and configurable HID gadget support
-          CONFIG_USB_GADGET=y
-          CONFIG_USB_G_ANDROID=y
-          CONFIG_USB_CONFIGFS=y
-          CONFIG_USB_F_HID=y
-          CONFIG_USB_CONFIGFS_F_HID=y
-
-          # Linux wireless framework. This does not add a driver for a
-          # particular external USB Wi-Fi chipset.
-          CONFIG_CFG80211=y
-          CONFIG_CFG80211_WEXT=y
-          CONFIG_MAC80211=y
-          EOF
-
-          tail -n 35 "$TARGET_CONFIG"
-
-      - name: Build AnyKernel package
+      - name: Build kernel and AnyKernel3 ZIP
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: ./kernel-source/
+          # Actual remote kernel source repository
+          kernel-url: https://github.com/LineageOS/android_kernel_motorola_sm6375.git
+
+          # Exact LineageOS branch to build
+          kernel-branch: lineage-23.2
+
+          # Kernel configuration and architecture
           config: gki_defconfig
-          merge-configs: '["arch/arm64/configs/vendor/ext_config/lineage_moto-holi.config"]'
           arch: arm64
-          anykernel3: true
-          nethunter: false
+
+          # Enable the build action's NetHunter kernel configuration.
+          # Keep patches disabled until the baseline artifact builds and boots.
+          nethunter: true
           nethunter-patch: false
+
+          # Produce an AnyKernel3 flashable ZIP
+          anykernel3: true
+
+          # Test only: do not automatically create a GitHub Release.
           release: false
+
+          # Required by actions that need to access repository data
           access-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: List generated ZIP files
+      - name: List generated kernel ZIP files
         shell: bash
         run: |
           set -euo pipefail
-          find "$GITHUB_WORKSPACE" -type f -name '*.zip' -printf '%p  %k KB
-' | sort
+          echo "Searching for generated ZIP files..."
+          find "$GITHUB_WORKSPACE" \
+            -type f \
+            -name '*.zip' \
+            -not -path '*/.git/*' \
+            -printf '%p  %k KB
+' \
+            | sort
 
-      - name: Upload kernel ZIP artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload milanf kernel artifact
+        uses: actions/upload-artifact@v5
         with:
           name: milanf-nethunter-kernel-${{ github.run_number }}
-          path: '**/*.zip'
+          path: |
+            **/*.zip
+            !**/.git/**
           if-no-files-found: error
           retention-days: 14
